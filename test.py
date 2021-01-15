@@ -1,5 +1,5 @@
 import numpy as np
-from sklearn.model_selection import KFold
+from sklearn.model_selection import KFold,StratifiedKFold,train_test_split
 import tensorflow as tf
 import cv2
 import os
@@ -117,9 +117,9 @@ def resnet(update=False):
 
 def kf():
     X = np.array([[1, 2], [3, 4], [1, 2], [3, 4],[2,2],[2,3]])
-    y = np.array([1, 2, 3, 4, 5, 6])
+    y = np.array([1, 2, 2, 1, 2, 2])
 
-    kf = KFold(n_splits=5)
+    kf = KFold(n_splits=2)
     for train_index, test_index in kf.split(X):
         print('train_index', train_index, 'test_index', test_index)
         train_X, train_y = X[train_index], y[train_index]
@@ -216,16 +216,16 @@ class mycallback(tf.keras.callbacks.Callback):
         self.test_f1.append(f1_score(self.test_y,test_y_pre))
         self.test_precision.append(precision_score(self.test_y,test_y_pre))
         self.test_recall.append(recall_score(self.test_y,test_y_pre))
-def train(model,X,Y,testX,testY,weights_save_dir,data_save_dir,epoch):
+def train(model,X,Y,weights_save_dir,data_save_dir,epoch):
     model.compile(loss=tf.keras.losses.binary_crossentropy,
                   optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
                   metrics=[tf.keras.metrics.binary_accuracy])
-    kf = KFold(n_splits=5)
+    kf = StratifiedKFold(n_splits=5)
     p=1
-    for train_index, test_index in kf.split(X):
+    for train_index, test_index in kf.split(X,Y):
         title="number: "+str(p)+" fold"
-        train_x, train_y = X[train_index], Y[train_index]
-        vali_x,vali_y = X[test_index], Y[test_index]
+        train_x, vali_x,train_y,vali_y= train_test_split(X[train_index],Y[train_index],test_size=0.15,random_state=0)
+        testX,testY= X[test_index], Y[test_index]
         mycall=mycallback(testX,testY,weights_save_dir)
         model.fit(train_x,train_y,epochs=epoch,shuffle=True,validation_data=(vali_x,vali_y),callbacks=[mycall])
         data=warpMycall(mycall)
@@ -233,12 +233,11 @@ def train(model,X,Y,testX,testY,weights_save_dir,data_save_dir,epoch):
         p+=1
 
 def vgg_train():
-    X,Y=readimage('/Users/lizhenhao/Desktop/laserfilm/data/train',[0,1])
-    testX,textY=readimage('/Users/lizhenhao/Desktop/laserfilm/data/test',[0,1])
+    X,Y=readimage('/Users/lizhenhao/Desktop/laserfilm/resize',[0,1])
     vgg=vgg19(update=False)
-    train(vgg,X,Y,testX,textY,'weights/freeze/vgg','data/freeze/vgg.txt',1)
+    train(vgg,X,Y,'weights/freeze/vgg','data/freeze/vgg.txt',1)
 
 if __name__=='__main__':
     vgg_train()
-    #te()
+
 
